@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
+from pathlib import os
 import csv
 
 
@@ -42,7 +43,7 @@ class EmailParser:
                         name = row[0]
                         address = row[1]
                         entry = EmailEntry(name, address)
-                        if self.valid_emails(entry.address):
+                        if self.valid_email(entry.address):
                             self.correct_emails_list.append(entry.address)
                         else:
                             self.incorrect_emails_list.append(entry.address)
@@ -54,7 +55,7 @@ class EmailParser:
             with open(txt_path, 'r') as txt_file:
                 for line in txt_file:
                     line = line.strip()
-                    if self.valid_emails(line):
+                    if self.valid_email(line):
                         self.correct_emails_list.append(line)
                     else:
                         self.incorrect_emails_list.append(line)
@@ -85,9 +86,8 @@ class EmailParser:
         index_pin = email.rfind("@")
         index_dot = email.rfind(".")
 
-        if(index_pin > 0 and index_dot > 0):
-            if(index_dot - index_pin >= 1):
-                return True
+        if((index_pin > 0 and index_dot > 0) and (index_dot - index_pin >= 1)):
+            return True
         return False
 
     # length of the part after the last . is at least 1 and
@@ -103,7 +103,7 @@ class EmailParser:
         else:
             return True
 
-    def valid_emails(self, email):      # finding invalid e-mail adresses
+    def valid_email(self, email):      # finding invalid e-mail adresses
 
         is_valid_first = self.first_condition(email)
         is_valid_second = self.second_condition(email)
@@ -158,10 +158,7 @@ class EmailParser:
 
         for email in email_adresses:                  # finding unique domains
             domain_set.add(email.domain)
-
-        for email in domain_set:                # saving unique domains in list
-            domain_list.append(email)
-
+        domain_list = list(domain_set)    # saving unique domains in list
         domain_list.sort()                # sort domains alphabetically
 
         for domain in domain_list:  # printing domains first, then adresses
@@ -176,19 +173,18 @@ class EmailParser:
 
     # appends logs from file with logs to the EmailLog class
     def email_in_log(self, path_to_logs_file, email_log):
-        logs = open(path_to_logs_file, 'r')
-        for line in logs:
-            colon_index = line.rfind(":")
-            end = line.rfind("'")
-            start = line.rfind("'", 0, end - 1)
-            index_pin = line.rfind("@", start, end)
+        with open(path_to_logs_file, 'r') as logs:
+            for line in logs:
+                colon_index = line.rfind(":")
+                end = line.rfind("'")
+                start = line.rfind("'", 0, end - 1)
+                index_pin = line.rfind("@", start, end)
 
-            email_log.append(EmailLog(
-                line[:colon_index],
-                line[start + 1: index_pin],
-                line[index_pin: end],
-                ))
-        logs.close()
+                email_log.append(EmailLog(
+                    line[:colon_index],
+                    line[start + 1: index_pin],
+                    line[index_pin: end],
+                    ))
 
     # appends email from class the Email to the list
     def email_on_the_list(self, email_to_check):
@@ -264,9 +260,6 @@ def main():
         )
 
     args = parser.parse_args()
-    ep = EmailParser()
-    ep.csv_load_files()
-    ep.txt_file_load()
     if args.incorrect:
         ep.show_incorrect_emails()
     elif args.search:
@@ -276,8 +269,16 @@ def main():
         ep.group_by_domain()
     elif args.find:
         path_to_logs_file = args.find
-        ep.find_emails_not_in_logs(path_to_logs_file)
+        if os.path.exists(path_to_logs_file):
+            ep.find_emails_not_in_logs(path_to_logs_file)
+        else:
+            print("Wrong path, try again")
 
 
 if __name__ == "__main__":
+    ep = EmailParser()
+    print("Loading data")
+    ep.csv_load_files()
+    ep.txt_file_load()
+    print("Result:")
     main()
